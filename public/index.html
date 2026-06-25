@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NRTURE COAT — P&L</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#000;--panel:#0c0c0e;--panel-2:#141417;--border:#222226;--border-soft:#1a1a1d;
+    --text:#f4f4f5;--muted:#8a8a92;--faint:#5a5a61;
+    --green:#34d27b;--red:#ff5d5d;--accent:#6c8cff;--amber:#f5b945;--input:#101013;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;padding:24px 22px 80px;max-width:1200px;margin:0 auto;}
+
+  /* ── TABS ── */
+  .tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:4px;width:fit-content;}
+  .tab{padding:8px 20px;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:.15s;}
+  .tab.active{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+  .tab-content{display:none;} .tab-content.active{display:block;}
+
+  h1{font-size:22px;font-weight:600;letter-spacing:-.02em;margin:0;}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px;}
+  header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:20px;}
+  .topbar-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .period{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:6px 10px;}
+  .period input{background:transparent;border:none;color:var(--text);font-size:13px;outline:none;width:auto;color-scheme:dark;}
+  label.lbl{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;}
+
+  /* ── KPI CARDS ── */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  .kpi{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--border);border-radius:14px;padding:16px;}
+  .kpi.accent{border-color:#2a3460;}
+  .k-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+  .k-val{font-size:26px;font-weight:600;letter-spacing:-.02em;margin-top:7px;font-variant-numeric:tabular-nums;}
+  .k-sub{font-size:12px;color:var(--faint);margin-top:5px;}
+  .pos{color:var(--green);}.neg{color:var(--red);}
+
+  /* ── LAYOUT ── */
+  .grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:start;}
+  @media(max-width:880px){.grid{grid-template-columns:1fr;}.kpis{grid-template-columns:repeat(2,1fr);}}
+
+  /* ── CARDS ── */
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px;}
+  .card h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 14px;display:flex;justify-content:space-between;align-items:center;}
+  .tag{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--panel-2);border:1px solid var(--border);color:var(--faint);text-transform:uppercase;letter-spacing:.05em;}
+
+  /* ── ROWS ── */
+  .row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .row .name{flex:1;}
+  .row .name input{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;outline:none;padding:4px 0;}
+  .moneywrap{position:relative;display:flex;align-items:center;}
+  .moneywrap .cur{position:absolute;left:10px;color:var(--faint);font-size:13px;pointer-events:none;}
+  input.money{width:150px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;text-align:right;padding:8px 10px 8px 22px;outline:none;font-variant-numeric:tabular-nums;transition:border-color .15s;}
+  input.money:focus{border-color:var(--accent);}
+  .del{background:transparent;border:none;color:var(--faint);cursor:pointer;font-size:16px;padding:4px;border-radius:6px;}
+  .del:hover{color:var(--red);background:var(--panel-2);}
+  .addbtn{background:var(--panel-2);border:1px dashed var(--border);color:var(--muted);border-radius:8px;padding:8px;width:100%;cursor:pointer;font-size:13px;margin-top:6px;transition:.15s;}
+  .addbtn:hover{border-color:var(--accent);color:var(--text);}
+  .divider{height:1px;background:var(--border-soft);margin:14px 0;}
+  .subtotal{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;}
+  .subtotal .v{font-variant-numeric:tabular-nums;font-weight:600;}
+
+  /* ── WATERFALL ── */
+  .bar-row{display:grid;grid-template-columns:110px 1fr 90px;gap:10px;align-items:center;margin-bottom:10px;font-size:13px;}
+  .bar-track{background:var(--panel-2);border-radius:6px;height:22px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:6px;transition:width .3s ease;}
+  .bar-row .amt{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);}
+
+  /* ── PROJECTION TAB ── */
+  .proj-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:700px){.proj-grid{grid-template-columns:1fr;}}
+  .proj-input{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:14px;}
+  .proj-input:last-child{border-bottom:none;}
+  .proj-input input{width:90px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;text-align:right;padding:7px 10px;outline:none;font-variant-numeric:tabular-nums;}
+  .proj-input input:focus{border-color:var(--accent);}
+  .proj-result{display:flex;justify-content:space-between;padding:10px 0;font-size:14px;border-bottom:1px solid var(--border-soft);}
+  .proj-result:last-child{border-bottom:none;}
+  .proj-result.total{font-size:16px;font-weight:600;padding-top:14px;margin-top:4px;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge.green{background:#0d2718;color:var(--green);border:1px solid #1a4a2e;}
+  .badge.red{background:#200d0d;color:var(--red);border:1px solid #3a1a1a;}
+  .badge.amber{background:#1f1800;color:var(--amber);border:1px solid #3a2e00;}
+
+  /* ── UPLOAD ── */
+  .drop{border:1.5px dashed var(--border);border-radius:12px;padding:22px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s;background:var(--panel-2);}
+  .drop:hover,.drop.over{border-color:var(--accent);color:var(--text);background:#0e0f14;}
+  .drop strong{color:var(--text);}
+  .file-meta{font-size:12px;color:var(--faint);margin-top:10px;}
+  select.col{background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 9px;font-size:13px;outline:none;}
+  .applybar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+  .btn{background:var(--accent);border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-weight:500;}
+  .btn.ghost{background:var(--panel-2);border:1px solid var(--border);color:var(--text);}
+  .hint{font-size:12px;color:var(--faint);line-height:1.5;}
+  .sum-pill{display:inline-block;background:#0e1a12;border:1px solid #1e3a26;color:var(--green);border-radius:8px;padding:8px 12px;font-size:14px;font-variant-numeric:tabular-nums;font-weight:600;}
+
+  /* opex toggle */
+  .opex-toggle{background:transparent;border:1px solid var(--border);color:var(--faint);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;transition:.15s;}
+  .opex-toggle.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .sw-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px;color:var(--muted);}
+  .sw-row:last-of-type{border-bottom:none;}
+  .sw-amt{font-variant-numeric:tabular-nums;font-weight:500;color:var(--text);}
+
+  footer{margin-top:30px;color:var(--faint);font-size:11px;text-align:center;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>NRTURE COAT — P&amp;L</h1>
+    <div class="sub">Actuals only · every number recalculates as you type</div>
+  </div>
+  <div class="topbar-actions">
+    <div class="period">
+      <span class="lbl">From</span>
+      <input id="dateFrom" type="date" />
+      <span class="lbl">To</span>
+      <input id="dateTo" type="date" />
+    </div>
+    <button class="btn" style="background:var(--accent);color:#fff;border-color:var(--accent)" onclick="loadServerData()">↻ Refresh Data</button>
+    <button class="btn ghost" id="resetBtn">Reset</button>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" data-tab="pnl">P&amp;L</button>
+  <button class="tab" data-tab="proj">Projections</button>
+  <button class="tab" data-tab="beroas">BE ROAS</button>
+</div>
+
+<!-- ═══════════════ TAB 1: P&L ═══════════════ -->
+<div class="tab-content active" id="tab-pnl">
+
+  <div class="kpis">
+    <div class="kpi accent">
+      <div class="k-label">Revenue</div>
+      <div class="k-val" id="kpiRev">$0</div>
+      <div class="k-sub">actual collected</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Net Profit</div>
+      <div class="k-val" id="kpiProfit">$0</div>
+      <div class="k-sub" id="kpiMargin">0% margin</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Meta Spend</div>
+      <div class="k-val" id="kpiMeta">$0</div>
+      <div class="k-sub" id="kpiRoas">ROAS 0.00x</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Break-even ROAS</div>
+      <div class="k-val" id="kpiBeRoas">0.00x</div>
+      <div class="k-sub" id="kpiBeNote">—</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Revenue <span class="tag">income</span></h2>
+        <div id="revenueList"></div>
+        <button class="addbtn" data-add="revenue">+ Add revenue line</button>
+        <div class="divider"></div>
+        <div class="subtotal"><span>Total Revenue</span><span class="v pos" id="totRevenue">$0.00</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Cost of Goods (COGS) <span class="tag">variable</span></h2>
+        <div id="cogsList"></div>
+        <button class="addbtn" data-add="cogs">+ Add COGS line</button>
+        <div class="divider"></div>
+        <div class="subtotal"><span>Total COGS</span><span class="v neg" id="totCogs">$0.00</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Advertising &amp; Marketing <span class="tag">spend</span></h2>
+        <div id="adsList"></div>
+        <button class="addbtn" data-add="ads">+ Add campaign</button>
+        <div class="divider"></div>
+        <div class="subtotal"><span>Total Ad Spend</span><span class="v neg" id="totAds">$0.00</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Operating Expenses <span class="tag">overhead</span>
+          <span style="display:flex;gap:4px;margin-left:auto">
+            <button id="opexMonthly" class="opex-toggle active" onclick="setOpexView('monthly')">Monthly</button>
+            <button id="opexYearly" class="opex-toggle" onclick="setOpexView('yearly')">Yearly</button>
+          </span>
+        </h2>
+
+        <!-- SOFTWARE SUBS (fixed, not editable lines) -->
+        <div style="font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Software Subscriptions</div>
+        <div class="sw-row"><span>Kaching Bundle</span><span class="sw-amt" data-monthly="24.61" data-freq="monthly">$24.61</span></div>
+        <div class="sw-row"><span>Luxury Tools (1 acct)</span><span class="sw-amt" data-monthly="29.53" data-freq="monthly">$29.53</span></div>
+        <div class="sw-row"><span>Netlify</span><span class="sw-amt" data-monthly="6.33" data-freq="monthly">$6.33</span></div>
+        <div class="sw-row"><span>Heygen</span><span class="sw-amt" data-monthly="28.12" data-freq="monthly">$28.12</span></div>
+        <div class="sw-row"><span>We Tracked</span><span class="sw-amt" data-monthly="52.73" data-freq="monthly">$52.73</span></div>
+        <div class="sw-row"><span>Zoho <span style="color:var(--faint);font-size:11px">(annual)</span></span><span class="sw-amt" data-monthly="1.23" data-annual="14.76" data-freq="annual">$1.23</span></div>
+        <div class="sw-row"><span>Software</span><span class="sw-amt" data-monthly="139.90" data-freq="monthly">$139.90</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);padding:8px 0 4px;border-top:1px solid var(--border-soft);margin-top:4px">
+          <span>Software subtotal</span><span id="swSubtotal" style="font-variant-numeric:tabular-nums;font-weight:600">$0.00</span>
+        </div>
+
+        <div class="divider"></div>
+        <!-- OTHER OPEX (editable) -->
+        <div style="font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Other Expenses</div>
+        <div id="opexList"></div>
+        <button class="addbtn" data-add="opex">+ Add expense</button>
+        <div class="divider"></div>
+        <div class="subtotal"><span>Total Operating Expenses</span><span class="v neg" id="totOpex">$0.00</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--faint);padding:4px 0 0">
+          <span id="opexViewLabel">monthly view</span>
+          <span id="opexAnnualNote" style="color:var(--amber)"></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>P&amp;L Statement</h2>
+        <div class="subtotal"><span>Revenue</span><span class="v" id="sRev">$0.00</span></div>
+        <div class="subtotal" style="color:var(--muted)"><span>− COGS</span><span class="v" id="sCogs">$0.00</span></div>
+        <div class="divider"></div>
+        <div class="subtotal"><span><strong>Gross Profit</strong></span><span class="v" id="sGross">$0.00</span></div>
+        <div class="subtotal" style="color:var(--faint);font-size:12px"><span>Gross margin</span><span id="sGrossM">0%</span></div>
+        <div class="divider"></div>
+        <div class="subtotal" style="color:var(--muted)"><span>− Ad Spend</span><span class="v" id="sAds">$0.00</span></div>
+        <div class="subtotal" style="color:var(--muted)"><span>− Shopify Fees</span><span class="v" id="sShopifyFees">$0.00</span></div>
+        <div class="divider"></div>
+        <div class="subtotal" style="font-size:17px"><span><strong>Net Profit</strong></span><span class="v" id="sNet">$0.00</span></div>
+        <div class="subtotal" style="color:var(--faint);font-size:12px"><span>Net margin</span><span id="sNetM">0%</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Where the revenue goes</h2>
+        <div id="waterfall"></div>
+      </div>
+
+      <div class="card">
+        <h2>Import from Spreadsheet</h2>
+        <div class="drop" id="drop">
+          <div>Drop a <strong>.csv / .xlsx</strong> file here or <strong>click to browse</strong></div>
+          <div class="hint" style="margin-top:6px">COGS sheet, ad export, sales report</div>
+          <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display:none" />
+        </div>
+        <div id="filePanel" style="display:none">
+          <div class="file-meta" id="fileMeta"></div>
+          <div class="applybar">
+            <span class="lbl">Sum column</span>
+            <select class="col" id="colSelect"></select>
+            <span class="sum-pill" id="colSum">$0.00</span>
+          </div>
+          <div class="applybar">
+            <span class="lbl">Add to</span>
+            <select class="col" id="bucketSelect">
+              <option value="revenue">Revenue</option>
+              <option value="cogs" selected>COGS</option>
+              <option value="ads">Ad Spend</option>
+              <option value="opex">Operating Expenses</option>
+            </select>
+            <input id="importLabel" class="col" style="width:150px" placeholder="line label" />
+            <button class="btn" id="applyImport">Add as line</button>
+          </div>
+          <div class="hint" style="margin-top:10px">Pick the column with dollar amounts — the app sums every row.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TAB 2: PROJECTIONS ═══════════════ -->
+<div class="tab-content" id="tab-proj">
+  <div style="margin-bottom:18px">
+    <div style="color:var(--muted);font-size:13px">Subscription LTV projections fed live from the selected period's actuals (revenue, COGS, ad spend, fees & per-pack economics auto-update with each sync). Set your subscriber counts & retention assumptions below.</div>
+  </div>
+
+  <div class="proj-grid">
+    <!-- INPUTS -->
+    <div>
+      <div class="card">
+        <h2>Period Actuals <span style="font-size:11px;color:var(--accent);font-weight:500">● live</span></h2>
+        <div class="proj-input"><span>Revenue (live)</span><input id="pi_rev" type="number" value="4082.36" /></div>
+        <div class="proj-input"><span>COGS (live)</span><input id="pi_cogs" type="number" value="1698.80" /></div>
+        <div class="proj-input"><span>Meta Spend (live)</span><input id="pi_meta" type="number" value="3071.14" /></div>
+        <div class="proj-input"><span>Shopify Fees (live)</span><input id="pi_fees" type="number" value="202.22" /></div>
+        <div class="proj-input"><span>Order Discounts</span><input id="pi_disc" type="number" value="20.12" /></div>
+      </div>
+
+      <div class="card">
+        <h2>Sub Offer Breakdown</h2>
+        <div style="font-size:12px;color:var(--faint);margin-bottom:12px">Subs × AOV × avg months stayed · AOV &amp; COGS/order auto-filled live per pack; set Subscribers &amp; Avg months yourself</div>
+
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">30 Day Trial (1-pack)</div>
+        <div class="proj-input"><span>Subscribers</span><input id="ps1_subs" type="number" value="8" /></div>
+        <div class="proj-input"><span>AOV</span><input id="ps1_aov" type="number" value="34.83" /></div>
+        <div class="proj-input"><span>COGS/order</span><input id="ps1_cogs" type="number" value="10.60" /></div>
+        <div class="proj-input"><span>Avg months</span><input id="ps1_months" type="number" value="2" /></div>
+
+        <div class="divider"></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Buy 2 Get 1 Free (3-pack)</div>
+        <div class="proj-input"><span>Subscribers</span><input id="ps2_subs" type="number" value="37" /></div>
+        <div class="proj-input"><span>AOV</span><input id="ps2_aov" type="number" value="66.75" /></div>
+        <div class="proj-input"><span>COGS/order</span><input id="ps2_cogs" type="number" value="27.80" /></div>
+        <div class="proj-input"><span>Avg months</span><input id="ps2_months" type="number" value="2" /></div>
+
+        <div class="divider"></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Buy 3 Get 2 Free (5-pack)</div>
+        <div class="proj-input"><span>Subscribers</span><input id="ps3_subs" type="number" value="7" /></div>
+        <div class="proj-input"><span>AOV</span><input id="ps3_aov" type="number" value="97.18" /></div>
+        <div class="proj-input"><span>COGS/order</span><input id="ps3_cogs" type="number" value="46.20" /></div>
+        <div class="proj-input"><span>Avg months</span><input id="ps3_months" type="number" value="2" /></div>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div>
+      <div class="card">
+        <h2>Month 1 — Actual</h2>
+        <div class="proj-result"><span>Revenue</span><span id="pr_m1_rev" class="pos">$0</span></div>
+        <div class="proj-result"><span>COGS</span><span id="pr_m1_cogs" class="neg">$0</span></div>
+        <div class="proj-result"><span>Gross Profit</span><span id="pr_m1_gross">$0</span></div>
+        <div class="proj-result"><span>Meta Spend</span><span id="pr_m1_meta" class="neg">$0</span></div>
+        <div class="proj-result"><span>Fees &amp; Discounts</span><span id="pr_m1_fees" class="neg">$0</span></div>
+        <div class="proj-result total"><span>Net Profit M1</span><span id="pr_m1_net">$0</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Projected Recurring Revenue (subs only)</h2>
+        <div class="proj-result"><span>30 Day Trial subs</span><span id="pr_s1_rev">$0</span></div>
+        <div class="proj-result"><span>Buy 2 Get 1 Free subs</span><span id="pr_s2_rev">$0</span></div>
+        <div class="proj-result"><span>Buy 3 Get 2 Free subs</span><span id="pr_s3_rev">$0</span></div>
+        <div class="proj-result"><span>Total Sub Revenue</span><span id="pr_sub_rev" class="pos">$0</span></div>
+        <div class="proj-result"><span>Total Sub COGS</span><span id="pr_sub_cogs" class="neg">$0</span></div>
+        <div class="proj-result total"><span>Net Sub Profit</span><span id="pr_sub_net">$0</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Blended LTV Summary</h2>
+        <div class="proj-result"><span>Total Revenue (M1 + subs)</span><span id="pr_tot_rev" class="pos">$0</span></div>
+        <div class="proj-result"><span>Total COGS</span><span id="pr_tot_cogs" class="neg">$0</span></div>
+        <div class="proj-result"><span>Meta Spend (one-time)</span><span id="pr_tot_meta" class="neg">$0</span></div>
+        <div class="proj-result"><span>All Fees</span><span id="pr_tot_fees" class="neg">$0</span></div>
+        <div class="proj-result total"><span>Net Profit (blended)</span><span id="pr_tot_net">$0</span></div>
+        <div class="divider"></div>
+        <div class="proj-result"><span>BE ROAS</span><span id="pr_beroas">—</span></div>
+        <div class="proj-result"><span>M1 ROAS</span><span id="pr_roas_m1">—</span></div>
+        <div class="proj-result"><span>LTV ROAS</span><span id="pr_roas_ltv">—</span></div>
+        <div class="proj-result"><span>Sub rate</span><span id="pr_subrate">—</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TAB 3: BE ROAS ═══════════════ -->
+<div class="tab-content" id="tab-beroas">
+  <div style="margin-bottom:18px">
+    <div style="color:var(--muted);font-size:13px">Breakeven ROAS by region — calculated from actual Shopify orders, real COGS, and region-specific fees. Updates on every sync.</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px">
+    <div class="card">
+      <h2>Breakeven ROAS by Region</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px" id="beRoasTable">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Region</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Orders</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Revenue</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">AOV</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">BE ROAS M0</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">+M1 (85%)</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">+M2</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">+M3</th>
+          </tr>
+        </thead>
+        <tbody id="beRoasBody">
+          <tr><td colspan="8" style="padding:20px 8px;color:var(--faint);text-align:center">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Fee Breakdown by Region</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px" id="feeBreakTable">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Region</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Processing</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Conv+Payout</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Total Fees</th>
+            <th style="text-align:right;padding:7px 8px;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase">Fee %</th>
+          </tr>
+        </thead>
+        <tbody id="feeBreakBody">
+          <tr><td colspan="5" style="padding:20px 8px;color:var(--faint);text-align:center">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <h2>LTV Assumptions</h2>
+    <div style="display:flex;gap:32px;flex-wrap:wrap;font-size:13px">
+      <div><span style="color:var(--muted)">Monthly churn</span> <strong>15%</strong></div>
+      <div><span style="color:var(--muted)">M1 retention</span> <strong>85%</strong> · ×1.85 LTV</div>
+      <div><span style="color:var(--muted)">M2 retention</span> <strong>72.25%</strong> · ×2.57 LTV</div>
+      <div><span style="color:var(--muted)">M3 retention</span> <strong>61.4%</strong> · ×3.19 LTV</div>
+      <div><span style="color:var(--muted)">Last synced</span> <strong id="beRoasSyncTime">—</strong></div>
+    </div>
+  </div>
+</div>
+
+<div id="syncBar" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:12px;">
+  <span style="color:var(--muted)">Live sync</span>
+  <span id="syncShopify" style="color:var(--faint)">Shopify: —</span>
+  <span id="syncMeta" style="color:var(--faint)">Meta: —</span>
+  <button class="btn ghost" style="padding:4px 10px;font-size:11px;background:var(--accent);color:#fff;border-color:var(--accent)" onclick="loadServerData()">↻ Refresh Data</button>
+  <button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="triggerSync('shopify')">↻ Sync Shopify</button>
+  <button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="triggerSync('meta')">↻ Sync Meta</button>
+  <span id="syncNote" style="color:var(--faint);margin-left:auto">server: localhost:3001</span>
+</div>
+<footer>NRTURE COAT · saved in browser · nothing leaves your computer</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => (n<0?'-$':'$')+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtShort = n => { const a=Math.abs(n),s=n<0?'-$':'$'; return a>=1e6?s+(a/1e6).toFixed(2)+'M':a>=1e3?s+(a/1e3).toFixed(1)+'k':s+a.toLocaleString('en-US',{maximumFractionDigits:0}); };
+const uid = () => Math.random().toString(36).slice(2,9);
+// ── EASTERN TIME DISPLAY (America/New_York) ──
+const ET_TZ = 'America/New_York';
+const etTime = (t) => new Date(t).toLocaleTimeString('en-US',{timeZone:ET_TZ,hour:'2-digit',minute:'2-digit'}) + ' ET';
+const etDateTime = (t) => t ? new Date(t).toLocaleString('en-US',{timeZone:ET_TZ,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' ET' : 'never';
+
+/* ── TABS ── */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    $('tab-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+/* ── P&L STATE ── */
+const DEFAULT = {
+  period:'Jun 17 – Jun 25, 2026',
+  revenue:[
+    {id:uid(),name:'Amino Acid Capsules (62 orders)',val:4082.36},
+  ],
+  cogs:[
+    {id:uid(),name:'Amino — 1-pack × 10 orders',val:106.00},
+    {id:uid(),name:'Amino — 3-pack × 44 orders',val:1223.20},
+    {id:uid(),name:'Amino — 5-pack × 8 orders',val:369.60},
+  ],
+  ads:[
+    {id:uid(),name:'Meta — biddy 41.67-50.8',val:83.45},
+    {id:uid(),name:'Meta — Amino Acid Pills',val:1735.68},
+    {id:uid(),name:'Meta — Amino Acid Pills (listicle)',val:339.88},
+  ],
+  opex:[
+    {id:uid(),name:'Shopify fees (3.4% + $0.21×62)',val:151.82},
+    {id:uid(),name:'Intl currency conv (1.5% × $3,360)',val:50.40},
+    {id:uid(),name:'Order discounts',val:20.12},
+  ],
+  swView:'monthly'
+};
+const BUCKETS=['revenue','cogs','ads','opex'];
+const LISTID={revenue:'revenueList',cogs:'cogsList',ads:'adsList',opex:'opexList'};
+
+let state = (()=>{ try{ const r=localStorage.getItem('pnl_v2'); if(r){ const s=JSON.parse(r); if(s&&s.revenue) return s; } }catch(e){} return JSON.parse(JSON.stringify(DEFAULT)); })();
+const save = () => { try{ localStorage.setItem('pnl_v2',JSON.stringify(state)); }catch(e){} pushState(); };
+
+// debounced server push
+let pushTimer;
+function pushState(){
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(async ()=>{
+    try{
+      await fetch(`${SERVER}/api/state`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(state)});
+      document.getElementById('syncNote').textContent = 'saved · '+etTime(Date.now());
+    }catch(e){}
+  }, 1500);
+}
+
+async function loadSharedState(){
+  try{
+    const r = await fetch(`${SERVER}/api/state`, {signal: AbortSignal.timeout(3000)});
+    const d = await r.json();
+    if(d && d.state && d.state.revenue && d.state.revenue.length > 0){
+      state = d.state;
+      localStorage.setItem('pnl_v2', JSON.stringify(state));
+      BUCKETS.forEach(renderList);
+      initDateInputs();
+      opexView = state.swView||'monthly';
+      renderSwTools();
+      recalc();
+    }
+  }catch(e){}
+}
+const sumBucket = b => state[b].reduce((a,r)=>a+(parseFloat(r.val)||0),0);
+
+function renderList(b){
+  const wrap=$(LISTID[b]); wrap.innerHTML='';
+  state[b].forEach(item=>{
+    const row=document.createElement('div'); row.className='row';
+    row.innerHTML=`<div class="name"><input value="${esc(item.name)}" placeholder="Label"/></div><div class="moneywrap"><span class="cur">$</span><input class="money" inputmode="decimal" value="${item.val||''}" placeholder="0.00"/></div><button class="del">✕</button>`;
+    const [ni,vi]=row.querySelectorAll('input');
+    ni.addEventListener('input',e=>{item.name=e.target.value;save();});
+    vi.addEventListener('input',e=>{const v=parseFloat(e.target.value);item.val=isNaN(v)?0:v;recalc();save();});
+    row.querySelector('.del').addEventListener('click',()=>{state[b]=state[b].filter(x=>x.id!==item.id);renderList(b);recalc();save();});
+    wrap.appendChild(row);
+  });
+}
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function recalc(){
+  const rev=sumBucket('revenue'),cogs=sumBucket('cogs'),ads=sumBucket('ads'),opex=sumBucket('opex')+swToolsTotal();
+  const shopifyFees=sumBucket('opex');
+  const gross=rev-cogs, net=gross-ads-shopifyFees;
+  const grossM=rev?gross/rev*100:0, netM=rev?net/rev*100:0;
+  const roas=ads?rev/ads:0, contribFrac=rev?(gross-shopifyFees)/rev:0, beRoas=contribFrac>0?1/contribFrac:0;
+
+  $('totRevenue').textContent=fmt(rev); $('totCogs').textContent=fmt(cogs);
+  $('totAds').textContent=fmt(ads); $('totOpex').textContent=fmt(opex);
+  $('sRev').textContent=fmt(rev); $('sCogs').textContent=fmt(cogs);
+  $('sGross').textContent=fmt(gross); $('sGross').className='v '+(gross>=0?'pos':'neg');
+  $('sGrossM').textContent=grossM.toFixed(1)+'%';
+  $('sAds').textContent=fmt(ads);
+  $('sShopifyFees').textContent=fmt(shopifyFees);
+  $('sNet').textContent=fmt(net); $('sNet').className='v '+(net>=0?'pos':'neg');
+  $('sNetM').textContent=netM.toFixed(1)+'%';
+  $('kpiRev').textContent=fmtShort(rev);
+  $('kpiProfit').textContent=fmtShort(net); $('kpiProfit').className='k-val '+(net>=0?'pos':'neg');
+  $('kpiMargin').textContent=netM.toFixed(1)+'% margin';
+  $('kpiMeta').textContent=fmtShort(ads);
+  $('kpiRoas').textContent='ROAS '+roas.toFixed(2)+'x';
+  $('kpiBeRoas').textContent=beRoas?beRoas.toFixed(2)+'x':'—';
+  $('kpiBeNote').textContent=ads&&beRoas?(roas>=beRoas?'above break-even ✔':'below break-even'):'set COGS & spend';
+
+  // waterfall
+  const wf=$('waterfall'), base=rev||1;
+  wf.innerHTML=[
+    {label:'COGS',val:cogs,color:'#ff7a59'},
+    {label:'Ad spend',val:ads,color:'#f5b945'},
+    {label:net>=0?'Net profit':'Net loss',val:Math.abs(net),color:net>=0?'#34d27b':'#ff5d5d'},
+  ].map(r=>`<div class="bar-row"><span>${r.label}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,r.val/base*100)}%;background:${r.color}"></div></div><span class="amt">${fmtShort(r.val)} <span style="color:var(--faint)">· ${rev?(r.val/rev*100).toFixed(0):0}%</span></span></div>`).join('');
+}
+
+document.querySelectorAll('[data-add]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const b=btn.dataset.add;
+    state[b].push({id:uid(),name:'',val:0}); renderList(b); save();
+    const inputs=$(LISTID[b]).querySelectorAll('.row:last-child input');
+    if(inputs[0]) inputs[0].focus();
+  });
+});
+// ── DATE RANGE ──
+function initDateInputs(){
+  if($('dateFrom')) $('dateFrom').value = state.dateFrom || '2026-06-01';
+  if($('dateTo'))   $('dateTo').value   = state.dateTo   || '2026-06-25';
+}
+initDateInputs();
+// selecting a date pulls that exact range's data immediately
+['dateFrom','dateTo'].forEach(id=>{
+  const el=$(id);
+  if(el) el.addEventListener('change',e=>{
+    state[id]=e.target.value; save();
+    loadServerData();
+  });
+});
+$('resetBtn').addEventListener('click',()=>{
+  if(!confirm('Reset to Amino Acid actuals? This clears any edits.')) return;
+  state=JSON.parse(JSON.stringify(DEFAULT));
+  BUCKETS.forEach(renderList); initDateInputs(); recalc(); save();
+  toast('Reset to actuals');
+});
+
+/* ── SOFTWARE OPEX TOGGLE ── */
+const SW_TOOLS = [
+  {name:'Kaching Bundle',  monthly:35,    freq:'monthly'},
+  {name:'Kaching Bundle',   monthly:24.61, freq:'monthly'},
+  {name:'Luxury Tools (1 acct)', monthly:29.53, freq:'monthly'},
+  {name:'Netlify',         monthly:6.33,  freq:'monthly'},
+  {name:'Heygen',          monthly:28.12, freq:'monthly'},
+  {name:'We Tracked',      monthly:52.73, freq:'monthly'},
+  {name:'Zoho',            monthly:1.23,  annual:14.76, freq:'annual'},
+  {name:'Software',        monthly:139.90, freq:'monthly'},
+];
+
+let opexView = 'monthly';
+
+function setOpexView(v){
+  opexView = v; state.swView = v; save();
+  $('opexMonthly').classList.toggle('active', v==='monthly');
+  $('opexYearly').classList.toggle('active', v==='yearly');
+  renderSwTools();
+  recalc();
+}
+
+function renderSwTools(){
+  const yearly = opexView==='yearly';
+  let swTotal = 0;
+  document.querySelectorAll('.sw-amt').forEach((el,i)=>{
+    const t = SW_TOOLS[i];
+    let val;
+    if(yearly){
+      val = t.freq==='annual' ? t.annual : t.monthly*12;
+    } else {
+      val = t.monthly;
+    }
+    el.textContent = '$'+val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    swTotal += val;
+  });
+  $('swSubtotal').textContent = '$'+swTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('opexViewLabel').textContent = yearly ? 'yearly view (×12)' : 'monthly view';
+  $('opexAnnualNote').textContent = yearly ? 'Zoho billed annually ($21/yr)' : '';
+}
+
+function swToolsTotal(){
+  const yearly = opexView==='yearly';
+  return SW_TOOLS.reduce((sum,t)=>{
+    return sum + (yearly ? (t.freq==='annual' ? t.annual : t.monthly*12) : t.monthly);
+  }, 0);
+}
+
+/* ── PROJECTIONS ── */
+function numVal(id){ return parseFloat($(id).value)||0; }
+
+// live order base for sub-rate denominator (updated from server data)
+let projOrderBase = 62;
+
+// Feed the projection "actuals" + per-pack economics from live server data for
+// the selected period, then recalc. Forward-looking assumptions (subscriber
+// counts, avg months stayed) are left untouched for the user to set.
+function setInputVal(id, val){ const el=$(id); if(el) el.value = Math.round((val||0)*100)/100; }
+function syncProjFromLive(d, feesTotal){
+  const t = d.totals || {};
+  setInputVal('pi_rev',  t.revenue);
+  setInputVal('pi_cogs', t.cogs);
+  setInputVal('pi_meta', t.meta_spend);
+  setInputVal('pi_fees', feesTotal);
+  // per-pack AOV & COGS/order from live variant data (1 / 3 / 5 pack)
+  const byPack = {};
+  for(const v of (d.by_variant || [])){
+    const k = String(v.variant_title).trim();
+    if(!byPack[k]) byPack[k] = {orders:0, revenue:0, cogs:0};
+    byPack[k].orders  += v.orders  || 0;
+    byPack[k].revenue += v.revenue || 0;
+    byPack[k].cogs    += v.cogs    || 0;
+  }
+  const fillPack = (pack, aovId, cogsId) => {
+    const p = byPack[pack];
+    if(p && p.orders > 0){
+      setInputVal(aovId,  p.revenue / p.orders);
+      setInputVal(cogsId, p.cogs    / p.orders);
+    }
+  };
+  fillPack('1', 'ps1_aov', 'ps1_cogs');
+  fillPack('3', 'ps2_aov', 'ps2_cogs');
+  fillPack('5', 'ps3_aov', 'ps3_cogs');
+  projOrderBase = t.orders || projOrderBase;
+  recalcProj();
+}
+
+function recalcProj(){
+  const rev=numVal('pi_rev'), cogs=numVal('pi_cogs'), meta=numVal('pi_meta'),
+        fees=numVal('pi_fees'), disc=numVal('pi_disc');
+  const gross=rev-cogs, net_m1=gross-meta-fees-disc;
+
+  $('pr_m1_rev').textContent=fmt(rev);
+  $('pr_m1_cogs').textContent=fmt(cogs);
+  $('pr_m1_gross').textContent=fmt(gross); $('pr_m1_gross').className=gross>=0?'pos':'neg';
+  $('pr_m1_meta').textContent=fmt(meta);
+  $('pr_m1_fees').textContent=fmt(fees+disc);
+  $('pr_m1_net').textContent=fmt(net_m1); $('pr_m1_net').className=net_m1>=0?'pos':'neg';
+
+  // sub calcs — months-1 because M1 is already captured in actuals
+  const calc = (id_subs,id_aov,id_cogs,id_months) => {
+    const subs=numVal(id_subs), aov=numVal(id_aov), c=numVal(id_cogs), months=numVal(id_months);
+    const extra=Math.max(0,months-1);
+    return { rev:subs*aov*extra, cogs:subs*c*extra };
+  };
+  const s1=calc('ps1_subs','ps1_aov','ps1_cogs','ps1_months');
+  const s2=calc('ps2_subs','ps2_aov','ps2_cogs','ps2_months');
+  const s3=calc('ps3_subs','ps3_aov','ps3_cogs','ps3_months');
+  const subRev=s1.rev+s2.rev+s3.rev, subCogs=s1.cogs+s2.cogs+s3.cogs, subNet=subRev-subCogs;
+
+  $('pr_s1_rev').textContent=fmt(s1.rev);
+  $('pr_s2_rev').textContent=fmt(s2.rev);
+  $('pr_s3_rev').textContent=fmt(s3.rev);
+  $('pr_sub_rev').textContent=fmt(subRev);
+  $('pr_sub_cogs').textContent=fmt(subCogs);
+  $('pr_sub_net').textContent=fmt(subNet); $('pr_sub_net').className=subNet>=0?'pos':'neg';
+
+  const totRev=rev+subRev, totCogs=cogs+subCogs, totGross=totRev-totCogs;
+  const totFees=fees+disc, totNet=totGross-meta-totFees;
+  const gmFrac=totRev?totGross/totRev:0, beRoas=gmFrac>0?1/gmFrac:0;
+  const roasM1=meta?rev/meta:0, roasLtv=meta?totRev/meta:0;
+  const totalSubs=numVal('ps1_subs')+numVal('ps2_subs')+numVal('ps3_subs');
+  const subRate=projOrderBase?totalSubs/projOrderBase*100:0;
+
+  $('pr_tot_rev').textContent=fmt(totRev);
+  $('pr_tot_cogs').textContent=fmt(totCogs);
+  $('pr_tot_meta').textContent=fmt(meta);
+  $('pr_tot_fees').textContent=fmt(totFees);
+  $('pr_tot_net').textContent=fmt(totNet); $('pr_tot_net').className=totNet>=0?'pos':'neg';
+  $('pr_beroas').textContent=beRoas?beRoas.toFixed(2)+'x':'—';
+  $('pr_roas_m1').textContent=roasM1.toFixed(2)+'x';
+  $('pr_roas_ltv').textContent=roasLtv.toFixed(2)+'x';
+  $('pr_subrate').textContent=subRate.toFixed(1)+'% ('+totalSubs+' of '+projOrderBase+')';
+}
+
+document.querySelectorAll('#tab-proj input').forEach(i=>i.addEventListener('input',recalcProj));
+
+/* ── FILE IMPORT ── */
+let parsed=null;
+const drop=$('drop'), fileInput=$('fileInput');
+drop.addEventListener('click',()=>fileInput.click());
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+function handleFile(file){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      const json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+      const hi=json.findIndex(r=>r.some(c=>String(c).trim()!==''));
+      if(hi<0){toast('File looks empty');return;}
+      const headers=json[hi].map((h,i)=>String(h).trim()||('Col '+(i+1)));
+      const rows=json.slice(hi+1).filter(r=>r.some(c=>String(c).trim()!==''));
+      parsed={headers,rows};
+      $('filePanel').style.display='block';
+      $('fileMeta').textContent=`${file.name} · ${rows.length} rows · ${headers.length} cols`;
+      const sel=$('colSelect'); sel.innerHTML='';
+      let best=0,bestScore=-1;
+      headers.forEach((h,i)=>{
+        const o=document.createElement('option');o.value=i;o.textContent=h;sel.appendChild(o);
+        let s=0; for(const r of rows){const v=toNum(r[i]);if(v!==null)s++;} if(s>bestScore){bestScore=s;best=i;}
+      });
+      sel.value=best; $('importLabel').value=headers[best]; sel.onchange=updateSum; updateSum();
+    }catch(e){toast('Could not read file');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+const toNum=v=>{if(!v&&v!==0)return null;let s=String(v).replace(/[$,\s]/g,'').replace(/[()]/g,m=>m==='('?'-':'');if(!s)return null;const n=parseFloat(s);return isNaN(n)?null:n;};
+const colSum=i=>parsed.rows.reduce((t,r)=>{const n=toNum(r[i]);return n!==null?t+n:t;},0);
+function updateSum(){$('colSum').textContent=fmt(colSum(+$('colSelect').value));}
+$('applyImport').addEventListener('click',()=>{
+  if(!parsed)return;
+  const i=+$('colSelect').value, sum=colSum(i), bucket=$('bucketSelect').value, label=$('importLabel').value.trim()||parsed.headers[i];
+  state[bucket].push({id:uid(),name:label,val:Math.round(sum*100)/100});
+  renderList(bucket);recalc();save();
+  toast(`Added ${fmt(sum)} to ${bucket}`);
+});
+
+/* ── SERVER SYNC ── */
+const SERVER = 'https://PLACEHOLDER-nrture.up.railway.app'; // update after Railway deploy
+let serverOnline = false;
+
+async function checkServer(){
+  try{
+    const r = await fetch(`${SERVER}/api/last-sync`, {signal: AbortSignal.timeout(2000)});
+    if(!r.ok) throw new Error();
+    const d = await r.json();
+    serverOnline = true;
+    document.getElementById('syncBar').style.display = 'flex';
+    const fmtTime = t => etDateTime(t);
+    document.getElementById('syncShopify').textContent = `Shopify: ${fmtTime(d.shopify?.ran_at)} ${d.shopify?.status === 'ok' ? '✓' : '✗'}`;
+    document.getElementById('syncMeta').textContent    = `Meta: ${fmtTime(d.meta?.ran_at)} ${d.meta?.status === 'ok' ? '✓' : '✗'}`;
+    loadServerData();
+  } catch(e){
+    serverOnline = false;
+    document.getElementById('syncNote').textContent = 'server offline — using local data';
+  }
+}
+
+let _metaSyncInFlight = false;
+async function loadServerData(skipSync){
+  try{
+    const from = ($('dateFrom') && $('dateFrom').value) || '2026-06-01';
+    const to   = ($('dateTo')   && $('dateTo').value)   || '2026-12-31';
+    document.getElementById('syncNote').textContent = `loading ${from} → ${to}…`;
+    const r = await fetch(`${SERVER}/api/pnl?from=${from}&to=${to}`);
+    const d = await r.json();
+
+    // update all buckets unconditionally so selecting any date range shows accurate data
+    const t = d.totals;
+    {
+      const r2 = v => Math.round(v * 100) / 100;
+      // revenue — empty array if no orders in range
+      state.revenue = d.by_product.map(p => ({
+        id: uid(), name: p.product_name + ` (${p.orders} orders)`, val: r2(p.revenue)
+      }));
+      // cogs — empty array if no orders in range
+      state.cogs = d.by_variant.filter(v => v.cogs > 0).map(v => ({
+        id: uid(),
+        name: `${v.product_name} — ${v.variant_title}-pack × ${v.orders}`,
+        val: r2(v.cogs)
+      }));
+      // ads — always reflect whatever Meta data the DB holds for this exact range
+      // (total when full range selected, that day's spend when a single day is picked)
+      state.ads = d.meta_spend.map(m => ({
+        id: uid(), name: `Meta — ${m.campaign_name}`, val: r2(m.spend)
+      }));
+      // fees — calculated per region from currency breakdown
+      // USA/USD:   3.4%+$0.21 processing, 1.5% payout
+      // Canada/CAD: 2.6%+$0.21 processing, 3.5% conv+payout
+      // Europe (GBP/EUR/DKK/NOK/SEK/CZK/HUF etc): 3.4%+$0.22 processing, 3.5% conv+payout
+      // Australia/NZ (AUD/NZD): 3.4%+$0.21 processing, 3.5% conv+payout
+      const CAD_CURR = new Set(['CAD']);
+      const AUS_CURR = new Set(['AUD','NZD']);
+      const EU_CURR  = new Set(['GBP','EUR','DKK','NOK','SEK','CZK','HUF','PLN','RON','HRK','BGN','CHF','ISK','ALL','BAM','RSD','MKD']);
+      let procTotal = 0, convTotal = 0;
+      for (const row of (d.currency_breakdown || [])) {
+        const cur = (row.presentment_currency || 'USD').toUpperCase();
+        const rev = row.revenue || 0, ord = row.orders || 0;
+        if (CAD_CURR.has(cur)) {
+          procTotal += rev * 0.026 + ord * 0.21;
+          convTotal += rev * 0.035;
+        } else if (AUS_CURR.has(cur)) {
+          procTotal += rev * 0.034 + ord * 0.21;
+          convTotal += rev * 0.035;
+        } else if (EU_CURR.has(cur)) {
+          procTotal += rev * 0.034 + ord * 0.22;
+          convTotal += rev * 0.035;
+        } else {
+          procTotal += rev * 0.034 + ord * 0.21;
+          convTotal += rev * 0.015;
+        }
+      }
+      state.opex = [
+        {id:uid(), name:'Shopify processing fees (by region)', val: Math.round(procTotal*100)/100},
+        {id:uid(), name:'Intl currency conversion + payout',  val: Math.round(convTotal*100)/100},
+      ];
+
+      BUCKETS.forEach(renderList);
+      recalc();
+      renderBeRoas(d.currency_breakdown || [], d.totals);
+      syncProjFromLive(d, Math.round((procTotal+convTotal)*100)/100);
+
+      const adTotal = d.meta_spend.reduce((s,m)=>s+(m.spend||0),0);
+      document.getElementById('syncNote').textContent = adTotal>0
+        ? `synced · ${etTime(Date.now())}`
+        : `synced · ${etTime(Date.now())} · ⚠ no Meta ad spend for this range`;
+
+      // background: top up Meta data for this exact range without blocking the view.
+      // Silently no-ops if the Meta token is invalid/expired.
+      if(!skipSync && !_metaSyncInFlight){
+        _metaSyncInFlight = true;
+        fetch(`${SERVER}/api/sync/meta`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({from, to})
+        }).then(r=>r.json()).then(sd=>{
+          _metaSyncInFlight = false;
+          // if the sync actually pulled rows, refresh once to show them (no re-sync)
+          if(sd && sd.ok && sd.rows > 0) loadServerData(true);
+        }).catch(()=>{ _metaSyncInFlight = false; });
+      }
+    }
+  } catch(e){ console.warn('Could not load server data', e); }
+}
+
+async function triggerSync(source){
+  document.getElementById('syncNote').textContent = `syncing ${source}…`;
+  try{
+    await fetch(`${SERVER}/api/sync/${source}`, {method:'POST'});
+    setTimeout(checkServer, 3000);
+  } catch(e){ toast('Server offline'); }
+}
+
+// load shared state then always refresh from server
+(async()=>{ await loadSharedState(); await loadServerData(); })();
+setInterval(loadServerData, 5 * 60 * 1000);
+checkServer();
+setInterval(checkServer, 5 * 60 * 1000);
+
+/* ── TOAST ── */
+let toastT;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
+
+/* ── BE ROAS TAB ── */
+function renderBeRoas(currencyBreakdown, totals){
+  const CAD = new Set(['CAD']);
+  const AUS = new Set(['AUD','NZD']);
+  const EU  = new Set(['GBP','EUR','DKK','NOK','SEK','CZK','HUF','PLN','RON','HRK','BGN','CHF','ISK','ALL','BAM','RSD','MKD']);
+
+  const regionDef = {
+    USA:       {label:'USA',        procPct:0.034, procFixed:0.21, convPct:0.015},
+    Canada:    {label:'Canada',     procPct:0.026, procFixed:0.21, convPct:0.035},
+    Europe:    {label:'Europe',     procPct:0.034, procFixed:0.22, convPct:0.035},
+    Australia: {label:'Australia',  procPct:0.034, procFixed:0.21, convPct:0.035},
+  };
+
+  // group currencies → regions
+  const regions = {};
+  for(const row of currencyBreakdown){
+    const cur = (row.presentment_currency||'USD').toUpperCase();
+    const key = CAD.has(cur)?'Canada': AUS.has(cur)?'Australia': EU.has(cur)?'Europe':'USA';
+    if(!regions[key]) regions[key]={orders:0,revenue:0,cogs:0,proc:0,conv:0};
+    const r=regions[key], d=regionDef[key];
+    r.orders  += row.orders  ||0;
+    r.revenue += row.revenue ||0;
+    r.cogs    += row.cogs    ||0;
+    r.proc    += (row.revenue||0)*d.procPct + (row.orders||0)*d.procFixed;
+    r.conv    += (row.revenue||0)*d.convPct;
+  }
+
+  const ltv=[1, 1.85, 2.5725, 3.1866];
+  const roasBadge = v => {
+    const cls = v<=1?'color:var(--green)': v<=1.5?'color:var(--accent)': v<=2?'color:var(--amber)':'color:var(--red)';
+    return `<span style="${cls};font-weight:600">${v.toFixed(2)}x</span>`;
+  };
+
+  // fallback: use global avg COGS/order when per-region COGS not yet in API response
+  const globalCogsPerOrder = (totals && totals.orders > 0) ? (totals.cogs || 0) / totals.orders : 0;
+
+  // BE ROAS table
+  const roasBody = $('beRoasBody');
+  if(roasBody){
+    const order = ['USA','Europe','Canada','Australia'];
+    roasBody.innerHTML = order.filter(k=>regions[k]).map(k=>{
+      const r=regions[k];
+      const aov = r.revenue/r.orders;
+      const cogsPerOrder = r.cogs > 0 ? r.cogs/r.orders : globalCogsPerOrder;
+      const feesPerOrder = (r.proc+r.conv)/r.orders;
+      const netPerOrder  = aov - cogsPerOrder - feesPerOrder;
+      const cols = ltv.map(m=>{
+        const be = netPerOrder*m>0 ? aov/(netPerOrder*m) : 99;
+        return `<td style="text-align:right;padding:8px">${roasBadge(be)}</td>`;
+      }).join('');
+      return `<tr style="border-bottom:1px solid var(--border-soft)">
+        <td style="padding:8px;font-weight:500">${k}</td>
+        <td style="text-align:right;padding:8px;color:var(--muted)">${r.orders}</td>
+        <td style="text-align:right;padding:8px;color:var(--muted)">${fmt(r.revenue)}</td>
+        <td style="text-align:right;padding:8px;color:var(--muted)">${fmt(aov)}</td>
+        ${cols}
+      </tr>`;
+    }).join('');
+  }
+
+  // Fee breakdown table
+  const feeBody = $('feeBreakBody');
+  if(feeBody){
+    const order = ['USA','Europe','Canada','Australia'];
+    feeBody.innerHTML = order.filter(k=>regions[k]).map(k=>{
+      const r=regions[k];
+      const totalFees = r.proc+r.conv;
+      const feePct = r.revenue>0 ? (totalFees/r.revenue*100) : 0;
+      return `<tr style="border-bottom:1px solid var(--border-soft)">
+        <td style="padding:8px;font-weight:500">${k}</td>
+        <td style="text-align:right;padding:8px;color:var(--muted)">${fmt(r.proc)}</td>
+        <td style="text-align:right;padding:8px;color:var(--muted)">${fmt(r.conv)}</td>
+        <td style="text-align:right;padding:8px;font-weight:500">${fmt(totalFees)}</td>
+        <td style="text-align:right;padding:8px;color:var(--muted)">${feePct.toFixed(1)}%</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const el=$('beRoasSyncTime');
+  if(el) el.textContent=etTime(Date.now());
+}
+
+/* ── INIT ── */
+opexView = state.swView || 'monthly';
+BUCKETS.forEach(renderList);
+renderSwTools();
+recalc();
+recalcProj();
+// keep KPI cards in sync with P&L statement
+setInterval(()=>{
+  const rv=$('sRev')?.textContent; const nt=$('sNet')?.textContent; const ad=$('sAds')?.textContent;
+  const gm=$('sGrossM')?.textContent; const nm=$('sNetM')?.textContent; const rs=$('kpiRoas')?.textContent;
+  if(rv && rv!=='$0.00'){ $('kpiRev').textContent=rv; $('kpiProfit').textContent=nt; $('kpiProfit').className='k-val '+($('sNet').className.includes('pos')?'pos':'neg'); $('kpiMeta').textContent=ad; $('kpiMargin').textContent=nm; }
+}, 500);
+</script>
+</body>
+</html>
