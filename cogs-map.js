@@ -3,12 +3,10 @@
 
 const COGS_MAP = {
   // NRTURE COAT & PROTECT
-  // Replace 'PRODUCT_ID' with the actual Shopify product ID
-  // Variant titles must match exactly what Shopify stores (check /api/orders to confirm)
-  'PRODUCT_ID': {
-    '120 Days Risk Free': 0,  // TODO: set landed cost
-    'Buy 2 Get 1 Free':   0,  // TODO: set landed cost
-    'Buy 3 Get 2 Free':   0,  // TODO: set landed cost
+  '9314830352637': {
+    '1': 16.90,  // 1-pack landed cost ($14.70 product + $2.20 shipping)
+    '3': 43.40,  // 3-pack landed cost ($34.60 product + $8.80 shipping)
+    '5': 67.40,  // 5-pack landed cost ($56.40 product + $11.00 shipping)
   },
 };
 
@@ -20,7 +18,7 @@ function getCogs(productId, variantTitle) {
 
 function getProductName(productId) {
   const names = {
-    'PRODUCT_ID': 'NRTURE COAT & PROTECT',
+    '9314830352637': 'NRTURE COAT & PROTECT',
   };
   return names[String(productId)] || `Product ${productId}`;
 }

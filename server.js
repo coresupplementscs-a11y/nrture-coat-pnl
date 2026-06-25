@@ -299,19 +299,9 @@ async function syncMeta(dateFrom, dateTo) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  LIVE CAD→USD RATE (refreshed daily)
-// ─────────────────────────────────────────────────────────────
-let cadToUsd = parseFloat(process.env.META_CURRENCY_RATE || '0.703');
-
-async function refreshCadRate() {
-  try {
-    const r = await fetch('https://api.exchangerate-api.com/v4/latest/CAD');
-    const d = await r.json();
-    const rate = d.rates?.USD;
-    if (rate) { cadToUsd = rate; console.log(`[FX] CAD/USD updated: ${rate}`); }
-  } catch(e) { console.warn('[FX] Rate fetch failed, using', cadToUsd); }
-}
+// Meta ad account is USD — no currency conversion needed.
+const cadToUsd = parseFloat(process.env.META_CURRENCY_RATE || '1');
+async function refreshCadRate() {} // no-op: account is USD
 
 // ─────────────────────────────────────────────────────────────
 //  CRON JOBS
