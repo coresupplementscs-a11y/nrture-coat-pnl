@@ -185,7 +185,7 @@ function syncOrdersTransaction(orders) {
           getProductName(li.product_id)||li.title||'',
           li.variant_title||'', parseInt(li.quantity)||1,
           parseFloat(li.price)||0, parseFloat(li.total_discount)||0,
-          lineRevenue, cogsPerPack, cogsTotal, grossProfit,
+          lineRevenue, cogsPerBundle, cogsTotal, grossProfit,
           o.presentment_currency||o.currency||'USD'
         );
       }
