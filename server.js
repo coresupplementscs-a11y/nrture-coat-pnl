@@ -172,9 +172,12 @@ function syncOrdersTransaction(orders) {
 
       deleteLineItems.run(String(o.id));
       for (const li of (o.line_items || [])) {
-        const cogsPerPack = getCogs(li.product_id, li.variant_title) ?? 0;
-        const lineRevenue = parseFloat(li.price) * parseInt(li.quantity);
-        const cogsTotal   = cogsPerPack;
+        const cogsPerBundle = getCogs(li.product_id, li.variant_title) ?? 0;
+        const packSize    = parseInt(li.variant_title) || 1;
+        const qty         = parseInt(li.quantity) || 1;
+        const bundles     = Math.max(1, Math.round(qty / packSize));
+        const lineRevenue = parseFloat(li.price) * qty;
+        const cogsTotal   = cogsPerBundle * bundles;
         const grossProfit = lineRevenue - cogsTotal;
 
         insertLineItem.run(

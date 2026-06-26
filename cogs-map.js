@@ -4,9 +4,10 @@
 const COGS_MAP = {
   // NRTURE COAT & PROTECT
   '9314830352637': {
-    '1': 16.90,  // 1-pack landed cost ($14.70 product + $2.20 shipping)
-    '3': 43.40,  // 3-pack landed cost ($34.60 product + $8.80 shipping)
-    '5': 67.40,  // 5-pack landed cost ($56.40 product + $11.00 shipping)
+    '1': 16.90,  // 1-pack total landed ($14.70 + $2.20)
+    '2': 28.10,  // 2-pack total landed ($23.70 + $4.40)
+    '3': 43.40,  // 3-pack total landed ($34.60 + $8.80)
+    '5': 67.40,  // 5-pack total landed ($56.40 + $11.00)
   },
 };
 
